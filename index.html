@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trie Explorer — 文字の分岐路</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #10121b;
+    --bg-deep: #0a0b12;
+    --surface: #1a1d2b;
+    --surface-2: #212540;
+    --edge: #363c5c;
+    --edge-soft: #262a44;
+    --text: #e9e7f3;
+    --text-muted: #8b8fbf;
+    --text-faint: #565b83;
+    --cyan: #6ee7f2;
+    --cyan-dim: #2d5760;
+    --gold: #f2b366;
+    --gold-dim: #6b4f2c;
+    --danger: #e2688a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(110,231,242,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(242,179,102,0.05), transparent 40%);
+  }
+
+  .app {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+  }
+
+  header {
+    margin-bottom: 32px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-size: 34px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+
+  h1 span {
+    color: var(--gold);
+  }
+
+  .lede {
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 640px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--edge-soft);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+
+  .row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  input[type="text"] {
+    background: var(--bg);
+    border: 1px solid var(--edge);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 11px 14px;
+    border-radius: 9px;
+    flex: 1;
+    min-width: 200px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  input[type="text"]::placeholder {
+    color: var(--text-faint);
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px rgba(110,231,242,0.12);
+  }
+
+  #search-input.no-match {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(226,104,138,0.12);
+  }
+
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 11px 18px;
+    border-radius: 9px;
+    border: 1px solid var(--edge);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  button:hover { border-color: var(--cyan); color: var(--cyan); }
+  button:active { transform: translateY(1px); }
+
+  button.primary {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    color: #0a0b12;
+    font-weight: 700;
+  }
+  button.primary:hover { background: #85edf7; color: #0a0b12; }
+
+  button.ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--edge-soft);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg);
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    padding: 6px 8px 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .chip button {
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    border: none;
+    background: var(--surface-2);
+    color: var(--text-faint);
+  }
+  .chip button:hover { background: var(--danger); color: #fff; }
+
+  .empty-chip-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 14px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+  .stats b { color: var(--text); font-weight: 600; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--edge-soft);
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .canvas-panel {
+    background: var(--bg);
+    border: 1px solid var(--edge-soft);
+    border-radius: 14px;
+    overflow: auto;
+    position: relative;
+    min-height: 480px;
+    background-image: radial-gradient(circle, #202542 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  svg { display: block; }
+
+  .edge-path {
+    fill: none;
+    stroke: var(--edge);
+    stroke-width: 1.6;
+    transition: stroke 0.35s ease, stroke-width 0.35s ease, opacity 0.35s ease;
+  }
+  .edge-path.on-path {
+    stroke: var(--cyan);
+    stroke-width: 2.6;
+  }
+
+  .node-circle {
+    fill: var(--surface-2);
+    stroke: var(--edge);
+    stroke-width: 1.6;
+    transition: fill 0.35s ease, stroke 0.35s ease, r 0.25s ease;
+  }
+  .node-circle.is-end {
+    fill: var(--gold-dim);
+    stroke: var(--gold);
+  }
+  .node-circle.on-path {
+    stroke: var(--cyan);
+    stroke-width: 2.4;
+  }
+  .node-circle.on-path.is-end {
+    fill: var(--gold);
+  }
+  .node-circle.match-end {
+    fill: var(--gold);
+    stroke: var(--cyan);
+    stroke-width: 2.6;
+  }
+  .node-circle.root {
+    fill: var(--bg);
+    stroke: var(--cyan);
+    stroke-width: 2;
+  }
+
+  .node-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    user-select: none;
+  }
+  .node-label.root-label {
+    fill: var(--cyan);
+    font-size: 15px;
+  }
+
+  .node-group {
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+    opacity: 1;
+  }
+  .node-group.entering { opacity: 0; }
+  .node-group.exiting { opacity: 0; }
+
+  .edge-group {
+    transition: opacity 0.35s ease;
+    opacity: 1;
+  }
+  .edge-group.entering { opacity: 0; }
+  .edge-group.exiting { opacity: 0; }
+
+  footer {
+    margin-top: 20px;
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 26px; }
+    .row { flex-direction: column; align-items: stretch; }
+    .stats { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <p class="eyebrow">Data Structure Viewer</p>
+    <h1>Trie<span>木</span>を歩く</h1>
+    <p class="lede">単語を追加すると、その場でTrie木がグラフとして組み上がります。検索欄に文字を打つと、根から辿る経路が光って見えます。</p>
+  </header>
+
+  <div class="panel">
+    <label class="field-label">単語を追加（スペース・カンマ・改行区切りで複数可）</label>
+    <div class="row">
+      <input type="text" id="word-input" placeholder="例: cat, car, care" autocomplete="off">
+      <button class="primary" id="add-btn">追加する</button>
+      <button class="ghost" id="sample-btn">サンプルを読み込む</button>
+      <button class="ghost" id="clear-btn">すべて削除</button>
+      <div class="stats">
+        <span>単語 <b id="stat-words">0</b></span>
+        <span>ノード <b id="stat-nodes">0</b></span>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="empty-chip-note" id="empty-note">まだ単語がありません。上のフォームから追加するか、サンプルを読み込んでください。</p>
+  </div>
+
+  <div class="panel">
+    <label class="field-label">検索 / プレフィックス確認</label>
+    <div class="row">
+      <input type="text" id="search-input" placeholder="文字を入力すると経路が光ります" autocomplete="off">
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="dot" style="background:var(--surface-2); border:1px solid var(--edge);"></span>通過点（文字）</span>
+      <span class="legend-item"><span class="dot" style="background:var(--gold-dim); border:1px solid var(--gold);"></span>単語の終端</span>
+      <span class="legend-item"><span class="dot" style="background:var(--cyan);"></span>検索中の経路</span>
+      <span class="legend-item"><span class="dot" style="background:var(--gold); border:1px solid var(--cyan);"></span>完全一致</span>
+    </div>
+  </div>
+
+  <div class="canvas-panel" id="canvas-panel">
+    <svg id="trie-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3.2" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <g id="edges-layer"></g>
+      <g id="nodes-layer"></g>
+    </svg>
+    <div class="empty-state" id="empty-state">
+      root ノードだけが待っています<br>単語を追加すると枝が伸び始めます
+    </div>
+  </div>
+
+  <footer>xSpacing: 各文字で一段右へ / ySpacing: 兄弟ノードは縦に整列 / レイアウトは葉ノードの並び順から自動計算</footer>
+</div>
+
+<script>
+(function(){
+  const X_SPACING = 96;
+  const Y_SPACING = 44;
+  const MARGIN_X = 70;
+  const MARGIN_Y = 40;
+  const RADIUS = 15;
+  const ROOT_RADIUS = 19;
+
+  const SAMPLE_WORDS = ["cat","car","care","card","dog","do","dot","dove","data","date"];
+
+  let words = new Set();
+
+  const wordInput = document.getElementById('word-input');
+  const addBtn = document.getElementById('add-btn');
+  const sampleBtn = document.getElementById('sample-btn');
+  const clearBtn = document.getElementById('clear-btn');
+  const chipsEl = document.getElementById('chips');
+  const emptyNote = document.getElementById('empty-note');
+  const statWords = document.getElementById('stat-words');
+  const statNodes = document.getElementById('stat-nodes');
+  const searchInput = document.getElementById('search-input');
+  const svg = document.getElementById('trie-svg');
+  const edgesLayer = document.getElementById('edges-layer');
+  const nodesLayer = document.getElementById('nodes-layer');
+  const emptyState = document.getElementById('empty-state');
+  const canvasPanel = document.getElementById('canvas-panel');
+
+  let nodeEls = new Map();
+  let edgeEls = new Map();
+
+  function buildTrie(wordList){
+    const root = { id: '', char: '', isEnd: false, children: {}, depth: 0 };
+    wordList.forEach(w => {
+      let node = root;
+      for(const ch of w){
+        if(!node.children[ch]){
+          node.children[ch] = {
+            id: node.id + ch,
+            char: ch,
+            isEnd: false,
+            children: {},
+            depth: node.depth + 1,
+            parentId: node.id
+          };
+        }
+        node = node.children[ch];
+      }
+      if(w.length > 0) node.isEnd = true;
+    });
+    return root;
+  }
+
+  function layout(root){
+    const positions = new Map();
+    let leafCounter = 0;
+    let maxDepth = 0;
+    let nodeCount = 0;
+
+    function assignY(node){
+      const keys = Object.keys(node.children);
+      maxDepth = Math.max(maxDepth, node.depth);
+      if(node.id !== '') nodeCount++;
+      let y;
+      if(keys.length === 0){
+        y = leafCounter * Y_SPACING + MARGIN_Y;
+        leafCounter++;
+      } else {
+        let sum = 0;
+        keys.forEach(k => { sum += assignY(node.children[k]); });
+        y = sum / keys.length;
+      }
+      const x = node.depth * X_SPACING + MARGIN_X;
+      positions.set(node.id, { x, y, char: node.char, isEnd: node.isEnd, parentId: node.parentId, depth: node.depth });
+      return y;
+    }
+    assignY(root);
+    const width = (maxDepth + 1) * X_SPACING + MARGIN_X * 1.4;
+    const height = Math.max(leafCounter * Y_SPACING + MARGIN_Y, 200);
+    return { positions, width, height, nodeCount };
+  }
+
+  function edgePath(x1, y1, x2, y2){
+    const midX = (x1 + x2) / 2;
+    return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+  }
+
+  function render(){
+    const root = buildTrie(words);
+    const { positions, width, height, nodeCount } = layout(root);
+
+    emptyState.style.display = nodeCount === 0 ? 'flex' : 'none';
+    svg.setAttribute('width', Math.max(width, 320));
+    svg.setAttribute('height', Math.max(height, 440));
+    canvasPanel.style.minHeight = '480px';
+
+    statWords.textContent = words.size;
+    statNodes.textContent = nodeCount;
+
+    const currentIds = new Set(positions.keys());
+
+    // remove stale nodes
+    for(const [id, el] of nodeEls){
+      if(!currentIds.has(id)){
+        el.classList.add('exiting');
+        setTimeout(() => el.remove(), 350);
+        nodeEls.delete(id);
+      }
+    }
+    for(const [id, el] of edgeEls){
+      if(!currentIds.has(id)){
+        el.classList.add('exiting');
+        setTimeout(() => el.remove(), 350);
+        edgeEls.delete(id);
+      }
+    }
+
+    // nodes
+    positions.forEach((pos, id) => {
+      let g = nodeEls.get(id);
+      const isRoot = id === '';
+      if(!g){
+        g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('node-group', 'entering');
+        g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', isRoot ? ROOT_RADIUS : RADIUS);
+        circle.classList.add('node-circle');
+        if(isRoot) circle.classList.add('root');
+        g.appendChild(circle);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.classList.add('node-label');
+        if(isRoot) label.classList.add('root-label');
+        label.textContent = isRoot ? '•' : pos.char;
+        g.appendChild(label);
+
+        nodesLayer.appendChild(g);
+        nodeEls.set(id, g);
+        requestAnimationFrame(() => requestAnimationFrame(() => g.classList.remove('entering')));
+      } else {
+        g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+      }
+      const circle = g.querySelector('circle');
+      circle.classList.toggle('is-end', pos.isEnd && !isRoot);
+      circle.classList.remove('on-path', 'match-end');
+      circle.removeAttribute('filter');
+    });
+
+    // edges
+    positions.forEach((pos, id) => {
+      if(id === '') return;
+      const parent = positions.get(pos.parentId);
+      if(!parent) return;
+      let g = edgeEls.get(id);
+      const d = edgePath(parent.x, parent.y, pos.x, pos.y);
+      if(!g){
+        g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('edge-group', 'entering');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.classList.add('edge-path');
+        path.setAttribute('d', d);
+        g.appendChild(path);
+        edgesLayer.appendChild(g);
+        edgeEls.set(id, g);
+        requestAnimationFrame(() => requestAnimationFrame(() => g.classList.remove('entering')));
+      } else {
+        g.querySelector('path').setAttribute('d', d);
+      }
+      g.querySelector('path').classList.remove('on-path');
+    });
+
+    applySearchHighlight();
+  }
+
+  function applySearchHighlight(){
+    const query = searchInput.value;
+    searchInput.classList.remove('no-match');
+    if(!query){
+      nodeEls.forEach(g => { g.querySelector('circle').classList.remove('on-path','match-end'); g.querySelector('circle').removeAttribute('filter'); });
+      edgeEls.forEach(g => g.querySelector('path').classList.remove('on-path'));
+      return;
+    }
+    const root = buildTrie(words);
+    let node = root;
+    let path = [''];
+    let ok = true;
+    for(const ch of query){
+      if(node.children[ch]){
+        node = node.children[ch];
+        path.push(node.id);
+      } else {
+        ok = false;
+        break;
+      }
+    }
+    if(!ok) searchInput.classList.add('no-match');
+
+    nodeEls.forEach((g, id) => {
+      const circle = g.querySelector('circle');
+      circle.classList.remove('on-path', 'match-end');
+      circle.removeAttribute('filter');
+    });
+    edgeEls.forEach((g, id) => g.querySelector('path').classList.remove('on-path'));
+
+    path.forEach((id, i) => {
+      const g = nodeEls.get(id);
+      if(!g) return;
+      const circle = g.querySelector('circle');
+      if(ok && i === path.length - 1 && node.isEnd){
+        circle.classList.add('match-end');
+        circle.setAttribute('filter', 'url(#glow)');
+      } else {
+        circle.classList.add('on-path');
+        if(i === path.length - 1) circle.setAttribute('filter', 'url(#glow)');
+      }
+      const eg = edgeEls.get(id);
+      if(eg) eg.querySelector('path').classList.add('on-path');
+    });
+  }
+
+  function renderChips(){
+    chipsEl.innerHTML = '';
+    emptyNote.style.display = words.size === 0 ? 'block' : 'none';
+    [...words].sort().forEach(w => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      const span = document.createElement('span');
+      span.textContent = w;
+      const btn = document.createElement('button');
+      btn.textContent = '×';
+      btn.title = `${w} を削除`;
+      btn.addEventListener('click', () => {
+        words.delete(w);
+        renderChips();
+        render();
+      });
+      chip.appendChild(span);
+      chip.appendChild(btn);
+      chipsEl.appendChild(chip);
+    });
+  }
+
+  function addWords(raw){
+    const parts = raw.split(/[\s,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    if(parts.length === 0) return;
+    parts.forEach(p => words.add(p));
+    renderChips();
+    render();
+  }
+
+  addBtn.addEventListener('click', () => {
+    addWords(wordInput.value);
+    wordInput.value = '';
+    wordInput.focus();
+  });
+
+  wordInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      addWords(wordInput.value);
+      wordInput.value = '';
+    }
+  });
+
+  sampleBtn.addEventListener('click', () => {
+    SAMPLE_WORDS.forEach(w => words.add(w));
+    renderChips();
+    render();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    words.clear();
+    renderChips();
+    render();
+  });
+
+  searchInput.addEventListener('input', applySearchHighlight);
+
+  // initial state
+  SAMPLE_WORDS.forEach(w => words.add(w));
+  renderChips();
+  render();
+})();
+</script>
+</body>
+</html>
